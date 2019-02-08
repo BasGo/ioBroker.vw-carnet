@@ -18,7 +18,7 @@ function startAdapter(options) {
         name:  "vw-carnet", 
         message: function (obj) {
             if (typeof obj === 'object' && obj.message) {
-                adapter.log.info('Received message in VW CarNet adapter :' + obj.command);
+                adapter.log.info('Received message with command:' + obj.command);
                 if (obj.command === 'update') {
                     VWCarNetReadData(); // sendto command 'update' received
                 }
@@ -585,7 +585,7 @@ function CarNetLogon(callback) { //retrieve Token for the respective user
         'password': adapter.config.password};
     //'password': decrypt(my_key, adapter.config.password)};
     request.post({url: myUrl, form: myFormdata, headers: myHeaders, json: true}, function(error, response, responseData){
-        adapter.log.silly('Received response status code: ' + response.statusCode);
+        adapter.log.silly('Received response for token:' + JSON.stringify(responseData));
         switch(response.statusCode){
             case 200:
                 myConnected=true;  //connection to VW Car-Net successful established
@@ -601,7 +601,6 @@ function CarNetLogon(callback) { //retrieve Token for the respective user
                 myLastCarNetAnswer='Answer fom Car-Net: ' + response.statusCode + ' undefined';
         }
 
-        adapter.log.silly('Remembering access token: ' + responseData.access_token);
         myAuthHeaders.Authorization = 'AudiAuth 1 ' + responseData.access_token;
         myToken = responseData.access_token;
         return callback(myConnected);
@@ -609,18 +608,17 @@ function CarNetLogon(callback) { //retrieve Token for the respective user
 }
 
 function RetrieveVehicles(callback){ //retrieve VIN of the first vehicle (Fahrgestellnummer)
-    var responseData;
     var myVehicleID = 0;
     var myUrl = 'https://msg.volkswagen.de/fs-car/usermanagement/users/v1/VW/DE/vehicles';
 
     if (VWCarNet_CredentialsAreValid===false){
         return callback('not authenticated');
     }
-    if (adapter.config.VIN === ''){
+
+    if (adapter.config.VIN === '') {
         request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-            adapter.log.silly('Received vehicle response (empty VIN): ' + JSON.stringify(responseData));
+            adapter.log.silly('Received response for vehicles:' + JSON.stringify(responseData));
             myVIN = responseData.userVehicles.vehicle[myVehicleID];
-            adapter.log.silly('Found ' + responseData.userVehicles.vehicle.length + ' vehicles');
             return callback('Count: ' + responseData.userVehicles.vehicle.length);
         });
     } else {
@@ -632,7 +630,7 @@ function RetrieveVehicles(callback){ //retrieve VIN of the first vehicle (Fahrge
 function GetResponse(name, uri) {
     try {
         request.get({url: uri, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-            adapter.log.silly('Received status response for ' + name + ':' + JSON.stringify(responseData));
+            adapter.log.silly('Received response for ' + name + ':' + JSON.stringify(responseData));
         });
     }
     catch (ex) {
@@ -644,12 +642,11 @@ function RetrieveVehicleData_VINValid(callback){
     var responseData;
     var myVINIsValid=false;
     GetResponse('carportdata', 'https://msg.volkswagen.de/fs-car/promoter/portfolio/v1/VW/DE/vehicle/' + myVIN + '/carportdata');
+    
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/vsr/v1/VW/DE/vehicles/' + myVIN + '/status';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
         adapter.log.silly('Received status response (' + myVIN + '):' + JSON.stringify(responseData));
-        adapter.log.info(response.statusCode);
         try {
-            //adapter.log.info(responseData.StoredVehicleDataResponse.vin);
             if(responseData.StoredVehicleDataResponse.vin===myVIN){
                 return callback(true);
             }
@@ -683,7 +680,7 @@ function RetrieveVehicleData_Status(callback){
                 return callback(false);
             }
 
-            adapter.log.silly('received status data:' + JSON.stringify(responseData));
+            adapter.log.silly('Received response for status (' + myVIN + '):' + JSON.stringify(responseData));
 
             var vehicleData = responseData.StoredVehicleDataResponse.vehicleData;
             //adapter.log.info(vehicleData.data[myData].field[myField].tsCarSentUtc);
@@ -896,7 +893,7 @@ function RetrieveVehicleData_Climater(callback){
     if (VWCarNet_Connected===false) { return callback(false); }
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/climatisation/v1/VW/DE/vehicles/' + myVIN + '/climater';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-        adapter.log.silly('Received climater data: ' + JSON.stringify(responseData));
+        adapter.log.silly('Received response for climater (' + myVIN + '):' + JSON.stringify(responseData));
 
         var climaterSettings = responseData.climater.settings;
         if (climaterSettings !== null) {
@@ -962,7 +959,7 @@ function RetrieveVehicleData_eManager(callback){
 
     try {
         request.get({url: myUrl, headers: myAuthHeaders}, function (error, response, result){
-            adapter.log.silly('Received charger data:' + JSON.stringify(result));
+            adapter.log.silly('Received response for charger (' + myVIN + '):' + JSON.stringify(result));
 
             responseData = JSON.parse(result);
 
@@ -1038,7 +1035,7 @@ function RetrieveVehicleData_Location(callback) {
 
     try {
         request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData) {
-            adapter.log.silly('Received position data:' + JSON.stringify(responseData));
+            adapter.log.silly('Received response for position (' + myVIN + '):' + JSON.stringify(responseData));
 
             if (error !== null) {
                 return callback(false);
