@@ -22,14 +22,6 @@ function startAdapter(options) {
                 if (obj.command === 'update') {
                     VWCarNetReadData(); // sendto command 'update' received
                 }
-                if (obj.command === 'activateLogging') {
-                    myLoggingEnabled=true;
-                    adapter.log.info('Logging mode activated');
-                }
-                if (obj.command === 'deactivateLogging') {
-                    myLoggingEnabled=false;
-                    adapter.log.info('Logging mode deactivated');
-                }
                 if (obj.command === 'CarSendData') {
                     VWCarNetForceCarToSendData(); // sendto command 'update' received
                 }
@@ -39,7 +31,7 @@ function startAdapter(options) {
             try {
                 VWCarNet_Connected = false;
                 adapter.setState('connection', {val: VWCarNet_Connected, ack: true}); //connection to Threema gateway not established
-                adapter.log.info('VW CarNet adapter stopped - cleaned everything up...');
+                adapter.log.info('Adapter stopped - cleaned everything up...');
                 callback();
             } catch (e) {
                 callback();
@@ -47,7 +39,7 @@ function startAdapter(options) {
         }, 
         ready: function () { 
             var myTmp;
-            //adapter.log.info(ioBroker_Language)
+            adapter.log.silly('Retrieved language: ' + ioBroker_Language)
             CreateStates_common(function(myTmp){});
             myGoogleMapsAPIKey = adapter.config.GoogleAPIKey;
             VWCarNet_GetClimater = adapter.config.adapterGetClimater;
@@ -90,7 +82,6 @@ var VWCarNet_GetEManager = true;
 var VWCarNet_GetLocation = true;
 var myCarNetDoors={'doors':'dummy'};
 var myCarNetWindows={'windows':'dummy'};
-var myLoggingEnabled=false;
 
 var myToken = '';
 var myVIN = '';
@@ -482,13 +473,13 @@ function main() {
         myCarNetWindows['RR']={'closed':false, 'level':0};
         myCarNetWindows['roof']={'closed':false, 'level':0};
         delete myCarNetWindows['windows']; //remove dummy entry
-        //adapter.log.info('Credentials valid?: ' +  VWCarNet_CredentialsAreValid);
+
         if (VWCarNet_CredentialsAreValid){
-            //adapter.log.info('Credentials valid - starting adapter')
+            adapter.log.silly('Credentials valid - starting adapter')
             RetrieveVehicles(function(myTmp){
                 RetrieveVehicleData_VINValid(function(myTmp){
                     VWCarNet_VINIsValid=myTmp;
-                    if (myLoggingEnabled) { adapter.log.info('VIN valid?: ' + VWCarNet_VINIsValid); }
+                    adapter.log.silly('VIN valid: ' + VWCarNet_VINIsValid);
                     VWCarNet_Connected = VWCarNet_CredentialsAreValid && VWCarNet_VINIsValid;
                     adapter.setState('connection', {val: VWCarNet_Connected, ack: true});
                     if(VWCarNet_VINIsValid){
@@ -544,7 +535,7 @@ function VWCarNetReadData(){
     CarNetLogon(function(myTmp){
         VWCarNet_CredentialsAreValid=myTmp;
         VWCarNet_Connected = VWCarNet_CredentialsAreValid && VWCarNet_VINIsValid;
-        if (myLoggingEnabled) {adapter.log.info('Are credentials valid: ' + VWCarNet_CredentialsAreValid);}
+        adapter.log.silly('Are credentials valid: ' + VWCarNet_CredentialsAreValid);
         if (VWCarNet_Connected){
             RetrieveVehicleData_Status(function(myTmp){
                 mySuccefulUpdate = mySuccefulUpdate && myTmp;
@@ -594,7 +585,7 @@ function CarNetLogon(callback) { //retrieve Token for the respective user
         'password': adapter.config.password};
     //'password': decrypt(my_key, adapter.config.password)};
     request.post({url: myUrl, form: myFormdata, headers: myHeaders, json: true}, function(error, response, responseData){
-        //adapter.log.info(response.statusCode);
+        adapter.log.silly('Received response status code: ' + response.statusCode);
         switch(response.statusCode){
             case 200:
                 myConnected=true;  //connection to VW Car-Net successful established
@@ -626,9 +617,9 @@ function RetrieveVehicles(callback){ //retrieve VIN of the first vehicle (Fahrge
     }
     if (adapter.config.VIN === ''){
         request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-            //adapter.log.debug(JSON.stringify(responseData));
+            adapter.log.silly('Received vehicle response (empty VIN): ' + JSON.stringify(responseData));
             myVIN = responseData.userVehicles.vehicle[myVehicleID];
-            //adapter.log.info(responseData.userVehicles.vehicle.length);
+            adapter.log.silly('Found ' + responseData.userVehicles.vehicle.length + ' vehicles');
             return callback('Count: ' + responseData.userVehicles.vehicle.length);
         });
     } else {
@@ -642,8 +633,8 @@ function RetrieveVehicleData_VINValid(callback){
     var myVINIsValid=false;
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/vsr/v1/VW/DE/vehicles/' + myVIN + '/status';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-        //adapter.log.info(JSON.stringify(responseData));
-        //adapter.log.info(response.statusCode);
+        adapter.log.silly('Received status response (' + myVIN + '):' + JSON.stringify(responseData));
+        adapter.log.info(response.statusCode);
         try {
             //adapter.log.info(responseData.StoredVehicleDataResponse.vin);
             if(responseData.StoredVehicleDataResponse.vin===myVIN){
@@ -679,10 +670,7 @@ function RetrieveVehicleData_Status(callback){
                 return callback(false);
             }
 
-            // if (myLoggingEnabled) {
-            //     responseData.StoredVehicleDataResponse.vin = 'ANONYMIZED_VIN_FOR_LOGGING';
-            //     adapter.log.info('received status data:' + JSON.stringify(responseData));
-            // }
+            adapter.log.silly('received status data:' + JSON.stringify(responseData));
 
             var vehicleData = responseData.StoredVehicleDataResponse.vehicleData;
             //adapter.log.info(vehicleData.data[myData].field[myField].tsCarSentUtc);
@@ -895,7 +883,7 @@ function RetrieveVehicleData_Climater(callback){
     if (VWCarNet_Connected===false) { return callback(false); }
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/climatisation/v1/VW/DE/vehicles/' + myVIN + '/climater';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
-        if (myLoggingEnabled) { adapter.log.info('received climater data:' + JSON.stringify(responseData)); }
+        adapter.log.silly('Received climater data: ' + JSON.stringify(responseData));
 
         var climaterSettings = responseData.climater.settings;
         if (climaterSettings !== null) {
@@ -961,7 +949,7 @@ function RetrieveVehicleData_eManager(callback){
 
     try {
         request.get({url: myUrl, headers: myAuthHeaders}, function (error, response, result){
-            if (myLoggingEnabled) {adapter.log.info('received eManager data:' + result);}
+            adapter.log.silly('Received charger data:' + JSON.stringify(result));
 
             responseData = JSON.parse(result);
 
@@ -1037,6 +1025,8 @@ function RetrieveVehicleData_Location(callback) {
 
     try {
         request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData) {
+            adapter.log.silly('Received position data:' + JSON.stringify(responseData));
+
             if (error !== null) {
                 return callback(false);
             }
@@ -1109,10 +1099,10 @@ function requestCarSendData2CarNet(callback){
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/vsr/v1/VW/DE/vehicles/' + myVIN + '/requests';
     try {
         request.post({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, result) {
-            if (myLoggingEnabled){adapter.log.info(response.statusCode);}
+            adapter.log.silly(response.statusCode);
 
             if (response.statusCode===202){
-                if (myLoggingEnabled){adapter.log.info('RequestID: ' + result.CurrentVehicleDataResponse.requestId);}
+                adapter.log.silly('RequestID: ' + result.CurrentVehicleDataResponse.requestId);
                 return callback(true);
             } else {
                 return callback(false);
