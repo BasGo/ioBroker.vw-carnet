@@ -628,9 +628,22 @@ function RetrieveVehicles(callback){ //retrieve VIN of the first vehicle (Fahrge
     }
 }
 
+function GetResponse(name, uri) {
+    try {
+        request.get({url: uri, headers: myAuthHeaders, json: true}, function (error, response, responseData){
+            adapter.log.silly('Received status response for ' + name + ':' + JSON.stringify(responseData));
+        });
+    }
+    catch (ex) {
+        adapter.log.error(responseData.error.errorCode + ': ' + responseData.error.description);
+    }
+}
+
 function RetrieveVehicleData_VINValid(callback){
     var responseData;
     var myVINIsValid=false;
+    GetResponse('honkAndFlash', 'https://msg.volkswagen.de/fs-car/bs/rhf/v1/VW/DE/vehicles/' + myVIN + '/honkAndFlash');
+    GetResponse('carportdata', 'https://msg.volkswagen.de/fs-car/promoter/portfolio/v1/VW/DE/vehicle/' + myVIN + '/carportdata');
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/vsr/v1/VW/DE/vehicles/' + myVIN + '/status';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
         adapter.log.silly('Received status response (' + myVIN + '):' + JSON.stringify(responseData));
