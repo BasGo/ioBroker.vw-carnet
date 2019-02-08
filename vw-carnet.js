@@ -601,6 +601,7 @@ function CarNetLogon(callback) { //retrieve Token for the respective user
                 myLastCarNetAnswer='Answer fom Car-Net: ' + response.statusCode + ' undefined';
         }
 
+        adapter.log.silly('Remembering access token: ' + responseData.access_token);
         myAuthHeaders.Authorization = 'AudiAuth 1 ' + responseData.access_token;
         myToken = responseData.access_token;
         return callback(myConnected);
@@ -642,7 +643,6 @@ function GetResponse(name, uri) {
 function RetrieveVehicleData_VINValid(callback){
     var responseData;
     var myVINIsValid=false;
-    GetResponse('honkAndFlash', 'https://msg.volkswagen.de/fs-car/bs/rhf/v1/VW/DE/vehicles/' + myVIN + '/honkAndFlash');
     GetResponse('carportdata', 'https://msg.volkswagen.de/fs-car/promoter/portfolio/v1/VW/DE/vehicle/' + myVIN + '/carportdata');
     var myUrl = 'https://msg.volkswagen.de/fs-car/bs/vsr/v1/VW/DE/vehicles/' + myVIN + '/status';
     request.get({url: myUrl, headers: myAuthHeaders, json: true}, function (error, response, responseData){
